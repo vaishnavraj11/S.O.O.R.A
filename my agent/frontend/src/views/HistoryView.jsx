@@ -126,16 +126,45 @@ export default function HistoryView({ taskResult, apiBaseUrl, onSelectTask, onPl
                     Replay Execution
                   </button>
 
+                  <a
+                    href={`${apiBaseUrl}/api/tasks/${task.task_id}/report/download?format=pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onPlaySound?.('click')
+                    }}
+                    className="btn-secondary text-xs py-2 px-3 flex items-center gap-1.5 hover:border-[#FF6A00]/50"
+                  >
+                    <IconFileText className="w-3.5 h-3.5 text-[#FF6A00]" />
+                    <span>Download PDF</span>
+                  </a>
+
+                  <a
+                    href={`${apiBaseUrl}/api/tasks/${task.task_id}/report/download?format=docx`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onPlaySound?.('click')
+                    }}
+                    className="px-2.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono text-zinc-400 hover:text-white transition-all flex items-center gap-1.5"
+                    title="Download Word Document"
+                  >
+                    <span>.DOCX</span>
+                  </a>
+
                   <button
                     type="button"
                     onClick={() => {
                       onPlaySound?.('hover')
                       onSelectTask?.(task)
                     }}
-                    className="btn-secondary text-xs py-2 px-3"
+                    className="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono text-zinc-300 hover:text-white transition-all flex items-center gap-1.5"
                   >
-                    <IconFileText className="w-3.5 h-3.5" />
-                    View Report
+                    View Details
                   </button>
                 </div>
               </div>

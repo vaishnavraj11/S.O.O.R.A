@@ -179,9 +179,14 @@ function TaskResults({ result, onHumanDecision, apiBaseUrl }) {
         <div className="section-heading-row">
           <h3>Final Task Report</h3>
           {reportDownloadUrl && (
-            <a className="download-button" href={reportDownloadUrl} download>
-              Download DOCX report
-            </a>
+            <div className="flex gap-2">
+              <a className="download-button" href={`${reportDownloadUrl}?format=pdf`} download>
+                Download PDF Report
+              </a>
+              <a className="download-button secondary" href={`${reportDownloadUrl}?format=docx`} download>
+                Download DOCX
+              </a>
+            </div>
           )}
           {importantPointsDownloadUrl && (
             <a className="download-button" href={importantPointsDownloadUrl} download>

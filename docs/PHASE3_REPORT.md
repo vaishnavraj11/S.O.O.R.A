@@ -152,3 +152,4 @@ Frontend production build (`npm run build`):
 | **APIs** | Completed | `POST /api/research/analyze`, `GET /api/documents/{id}/record` |
 | **Multi-Tenancy** | Completed | All extractions, records, and queries isolated by `workspace_id` |
 | **Regressions** | None | 23/23 backend tests passed; comprehensive orchestrator tests passed |
+

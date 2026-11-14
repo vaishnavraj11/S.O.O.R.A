@@ -144,10 +144,10 @@ export default function HeaderTopBar({
           className="flex items-center gap-2.5 pl-2 pr-3 py-1 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 transition-all"
         >
           <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#FF6A00] to-[#FF8A00] flex items-center justify-center text-white font-bold text-xs font-mono shadow-[0_0_10px_rgba(255,106,0,0.3)]">
-            AF
+            S
           </div>
           <div className="text-left hidden md:block">
-            <div className="text-xs font-bold text-white leading-tight">Asiya Fathima</div>
+            <div className="text-xs font-bold text-white leading-tight">Mohamed Sameer</div>
             <div className="text-[9px] text-[#FF8A00] font-mono leading-none">Mission Director</div>
           </div>
         </button>

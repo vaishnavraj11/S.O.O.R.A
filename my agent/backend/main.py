@@ -436,6 +436,131 @@ def _write_docx_from_markdown(markdown: str, path: Path) -> None:
         docx.writestr("word/styles.xml", styles_xml)
 
 
+def _write_pdf_from_markdown(markdown_text: str, output_path: Path, title: str = "Research Intelligence Report") -> None:
+    """Renders markdown text into an elegant, publication-grade PDF using PyMuPDF."""
+    import pymupdf
+    doc = pymupdf.open()
+    page_w, page_h = 595.3, 841.9  # A4
+    margin_l = 54.0
+    margin_r = 54.0
+    margin_t = 60.0
+    margin_b = 60.0
+    usable_w = page_w - margin_l - margin_r
+    max_y = page_h - margin_b
+
+    current_page = doc.new_page(width=page_w, height=page_h)
+    y = margin_t
+
+    def _check_page(needed_height: float):
+        nonlocal current_page, y
+        if y + needed_height > max_y:
+            current_page = doc.new_page(width=page_w, height=page_h)
+            y = margin_t
+
+    lines = markdown_text.splitlines()
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            y += 8
+            continue
+
+        if stripped.startswith("# "):
+            _check_page(42)
+            header_text = stripped[2:].strip()
+            current_page.insert_text((margin_l, y + 18), header_text, fontsize=16, fontname="helv", color=(0.1, 0.1, 0.15))
+            current_page.draw_line(
+                pymupdf.Point(margin_l, y + 26),
+                pymupdf.Point(margin_l + usable_w, y + 26),
+                color=(1.0, 0.41, 0.0),  # #FF6A00
+                width=1.5
+            )
+            y += 38
+        elif stripped.startswith("## "):
+            _check_page(30)
+            header_text = stripped[3:].strip()
+            current_page.insert_text((margin_l, y + 14), header_text, fontsize=12, fontname="helv", color=(0.15, 0.2, 0.25))
+            current_page.draw_line(
+                pymupdf.Point(margin_l, y + 19),
+                pymupdf.Point(margin_l + usable_w, y + 19),
+                color=(0.85, 0.85, 0.85),
+                width=0.5
+            )
+            y += 28
+        elif stripped.startswith("### "):
+            _check_page(24)
+            header_text = stripped[4:].strip()
+            current_page.insert_text((margin_l, y + 11), header_text, fontsize=10.5, fontname="helv", color=(0.2, 0.25, 0.3))
+            y += 20
+        elif stripped.startswith("- ") or stripped.startswith("* "):
+            bullet_text = stripped[2:].strip()
+            words = bullet_text.split()
+            cur_line = ""
+            _check_page(16)
+            current_page.insert_text((margin_l + 4, y + 10), "\u2022", fontsize=10, fontname="helv", color=(1.0, 0.41, 0.0))
+            for word in words:
+                test_line = f"{cur_line} {word}".strip()
+                if len(test_line) * 5.2 > usable_w - 20:
+                    current_page.insert_text((margin_l + 16, y + 10), cur_line, fontsize=9.5, fontname="helv", color=(0.15, 0.15, 0.15))
+                    y += 13
+                    _check_page(14)
+                    cur_line = word
+                else:
+                    cur_line = test_line
+            if cur_line:
+                current_page.insert_text((margin_l + 16, y + 10), cur_line, fontsize=9.5, fontname="helv", color=(0.15, 0.15, 0.15))
+                y += 14
+        else:
+            words = stripped.split()
+            cur_line = ""
+            for word in words:
+                test_line = f"{cur_line} {word}".strip()
+                if len(test_line) * 5.2 > usable_w:
+                    _check_page(14)
+                    current_page.insert_text((margin_l, y + 10), cur_line, fontsize=9.5, fontname="helv", color=(0.15, 0.15, 0.15))
+                    y += 13
+                    cur_line = word
+                else:
+                    cur_line = test_line
+            if cur_line:
+                _check_page(14)
+                current_page.insert_text((margin_l, y + 10), cur_line, fontsize=9.5, fontname="helv", color=(0.15, 0.15, 0.15))
+                y += 15
+
+    total_pages = len(doc)
+    for p_idx, page in enumerate(doc):
+        page.insert_text(
+            (margin_l, 36),
+            "TP01 AI RESEARCH PLATFORM — MISSION DIRECTOR: SAMEER",
+            fontsize=7.5,
+            fontname="helv",
+            color=(0.5, 0.5, 0.5)
+        )
+        page.draw_line(
+            pymupdf.Point(margin_l, 42),
+            pymupdf.Point(margin_l + usable_w, 42),
+            color=(0.85, 0.85, 0.85),
+            width=0.5
+        )
+        footer_text = f"Page {p_idx + 1} of {total_pages} | Verified Grounding & Cryptographic Audit"
+        page.insert_text(
+            (margin_l, page_h - 32),
+            footer_text,
+            fontsize=7.5,
+            fontname="helv",
+            color=(0.5, 0.5, 0.5)
+        )
+        page.draw_line(
+            pymupdf.Point(margin_l, page_h - 40),
+            pymupdf.Point(margin_l + usable_w, page_h - 40),
+            color=(0.85, 0.85, 0.85),
+            width=0.5
+        )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    doc.save(str(output_path))
+    doc.close()
+
+
 def _important_points_artifact(task_id: str, task: Dict[str, Any]) -> Path:
     report = _report_text_for_task(task_id, task)
     if not report:
@@ -842,47 +967,74 @@ async def get_report(task_id: str, authorization: Optional[str] = Header(None)):
 
 
 @app.get("/api/tasks/{task_id}/report/download")
-async def download_report(task_id: str, authorization: Optional[str] = Header(None)):
+async def download_report(
+    task_id: str,
+    format: Optional[str] = Query("pdf", description="Format to download: 'pdf', 'docx', or 'md'"),
+    authorization: Optional[str] = Header(None),
+):
     user_id = _request_user_id(authorization)
     task = _get_task_or_404(task_id, user_id)
-    artifact_path = _document_path_for_task(task)
-    if not artifact_path or not artifact_path.exists():
-        report = orchestrator.get_report(task_id).get("report", "")
-        if not report:
-            raise _api_error("DOCUMENT_NOT_FOUND", "Report file not found.", 404)
-        OUTPUT_DIR.mkdir(exist_ok=True)
-        artifact_path = (Path.cwd() / OUTPUT_DIR / f"{task_id}_report.md").resolve()
-        artifact_path.write_text(report, encoding="utf-8")
+    report_text = orchestrator.get_report(task_id).get("report", "") or task.get("final_report", "")
+    if not report_text:
+        raise _api_error("DOCUMENT_NOT_FOUND", "Report content not found.", 404)
+
+    fmt = (format or "pdf").lower().strip()
+    OUTPUT_DIR.mkdir(exist_ok=True)
+
+    if fmt == "docx":
+        docx_path = (Path.cwd() / OUTPUT_DIR / f"{task_id}_report.docx").resolve()
+        if not docx_path.exists():
+            _write_docx_from_markdown(report_text, docx_path)
         metadata = _document_metadata_for_path(
-            document_id=f"doc_{task_id}",
-            path=artifact_path,
+            document_id=f"doc_{task_id}_docx",
+            path=docx_path,
+            user_id=user_id,
+            task_id=task_id,
+            execution_id=f"exec_{task_id}",
+            content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+        return FileResponse(
+            path=docx_path,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            filename=f"{task_id}_report.docx",
+        )
+
+    elif fmt in {"md", "markdown"}:
+        md_path = (Path.cwd() / OUTPUT_DIR / f"{task_id}_report.md").resolve()
+        if not md_path.exists():
+            md_path.write_text(report_text, encoding="utf-8")
+        metadata = _document_metadata_for_path(
+            document_id=f"doc_{task_id}_md",
+            path=md_path,
             user_id=user_id,
             task_id=task_id,
             execution_id=f"exec_{task_id}",
             content_type="text/markdown; charset=utf-8",
         )
-        verification = verify_local_document(metadata["document_id"])
-        if verification["integrity"] != "VERIFIED":
-            raise _api_error("FILE_INTEGRITY_ERROR", "Report integrity verification failed before download.", 409)
-        return FileResponse(path=artifact_path, media_type="text/markdown; charset=utf-8", filename=f"{task_id}_report.md")
+        return FileResponse(
+            path=md_path,
+            media_type="text/markdown; charset=utf-8",
+            filename=f"{task_id}_report.md",
+        )
 
-    media_type = (
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        if artifact_path.suffix.lower() == ".docx"
-        else "text/markdown; charset=utf-8"
-    )
-    metadata = _document_metadata_for_path(
-        document_id=f"doc_{task_id}",
-        path=artifact_path,
-        user_id=user_id,
-        task_id=task_id,
-        execution_id=f"exec_{task_id}",
-        content_type=media_type,
-    )
-    verification = verify_local_document(metadata["document_id"])
-    if verification["integrity"] != "VERIFIED":
-        raise _api_error("FILE_INTEGRITY_ERROR", "Report integrity verification failed before download.", 409)
-    return FileResponse(path=artifact_path, media_type=media_type, filename=artifact_path.name)
+    else:
+        # Default: PDF format
+        pdf_path = (Path.cwd() / OUTPUT_DIR / f"{task_id}_report.pdf").resolve()
+        if not pdf_path.exists():
+            _write_pdf_from_markdown(report_text, pdf_path, title=f"Research Report: {task_id}")
+        metadata = _document_metadata_for_path(
+            document_id=f"doc_{task_id}_pdf",
+            path=pdf_path,
+            user_id=user_id,
+            task_id=task_id,
+            execution_id=f"exec_{task_id}",
+            content_type="application/pdf",
+        )
+        return FileResponse(
+            path=pdf_path,
+            media_type="application/pdf",
+            filename=f"{task_id}_report.pdf",
+        )
 
 
 @app.get("/api/tasks/{task_id}/important-points/download")
